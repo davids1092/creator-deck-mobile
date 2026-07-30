@@ -6,10 +6,12 @@ import type {
 import type { PairingPayload } from "../../shared/protocols/pairing";
 
 type MessageHandler = (msg: DesktopToMobileMessage) => void;
+type CloseHandler = () => void;
 
 export class MobileWsClient {
   private ws: WebSocket | null = null;
   private handlers: MessageHandler[] = [];
+  private closeHandlers: CloseHandler[] = [];
   private currentToken = "";
 
   connect(pairing: PairingPayload): void {
@@ -33,6 +35,7 @@ export class MobileWsClient {
 
     this.ws.onclose = () => {
       this.ws = null;
+      this.closeHandlers.forEach((h) => h());
     };
   }
 
@@ -48,6 +51,10 @@ export class MobileWsClient {
       payload: event,
     };
     this.ws.send(JSON.stringify(envelope));
+  }
+
+  onClose(handler: CloseHandler): void {
+    this.closeHandlers.push(handler);
   }
 
   onMessage(handler: MessageHandler): () => void {
