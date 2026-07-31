@@ -7,6 +7,7 @@ import {
   Alert,
   PermissionsAndroid,
   Platform,
+  BackHandler,
 } from "react-native";
 import { Camera, CameraType } from "react-native-camera-kit";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -22,6 +23,16 @@ export function PairingScreen({ navigation }: Props) {
   const [hasPermission, setHasPermission] = useState(false);
   const [scanned, setScanned] = useState(false);
   const navigated = useRef(false);
+
+  useEffect(() => {
+    if (!scanning) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setScanning(false);
+      setScanned(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [scanning]);
 
   useEffect(() => {
     if (status !== "connected" || navigated.current) return;
@@ -101,12 +112,13 @@ export function PairingScreen({ navigation }: Props) {
         />
       </View>
 
-      {scanned && (
-        <Text style={styles.hint}>Conectando…</Text>
-      )}
+      {scanned && <Text style={styles.hint}>Conectando…</Text>}
 
-      <TouchableOpacity onPress={() => { setScanned(false); setScanning(false); }} style={styles.retryButton}>
-        <Text style={styles.retryText}>Cancelar</Text>
+      <TouchableOpacity
+        style={styles.closeBtn}
+        onPress={() => { setScanning(false); setScanned(false); }}
+      >
+        <Text style={styles.closeBtnText}>✕  Cancelar escaneo</Text>
       </TouchableOpacity>
     </View>
   );
@@ -140,6 +152,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#7c3aed",
   },
+  closeBtn: {
+    marginTop: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "#374151",
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+  },
+  closeBtnText: {
+    color: "#9ca3af",
+    fontSize: 15,
+    fontWeight: "600",
+  },
   scanner: {
     width: "100%",
     height: "100%",
@@ -160,13 +189,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
-  },
-  retryButton: {
-    marginTop: 16,
-    padding: 10,
-  },
-  retryText: {
-    color: "#6b7280",
-    fontSize: 13,
   },
 });

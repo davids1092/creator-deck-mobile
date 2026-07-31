@@ -8,6 +8,7 @@ type ConnectionStatus = "disconnected" | "connecting" | "connected";
 interface AppStore {
   status: ConnectionStatus;
   workspace: Workspace | null;
+  activeProfileId: string | null;
   activePageId: string | null;
   buttonStates: Record<string, unknown>;
   client: MobileWsClient;
@@ -15,6 +16,7 @@ interface AppStore {
   connect(pairing: PairingPayload): void;
   disconnect(): void;
   pressButton(buttonId: string, pageId: string, profileId: string): void;
+  switchProfile(profileId: string): void;
   setNavigate(fn: (screen: string) => void): void;
 }
 
@@ -29,10 +31,11 @@ export const useAppStore = create<AppStore>((set, get) => {
   client.onMessage((msg) => {
     if (msg.type === "sync.workspace") {
       const { workspace } = msg;
+      const activeProfileId = workspace.activeProfileId;
       const defaultPageId =
-        workspace.profiles.find((p) => p.id === workspace.activeProfileId)
+        workspace.profiles.find((p) => p.id === activeProfileId)
           ?.defaultPageId ?? null;
-      set({ workspace, activePageId: defaultPageId, status: "connected" });
+      set({ workspace, activeProfileId, activePageId: defaultPageId, status: "connected" });
     } else if (msg.type === "button.stateUpdate") {
       set((s) => ({
         buttonStates: { ...s.buttonStates, [msg.buttonId]: msg.value },
@@ -45,6 +48,7 @@ export const useAppStore = create<AppStore>((set, get) => {
   return {
     status: "disconnected",
     workspace: null,
+    activeProfileId: null,
     activePageId: null,
     buttonStates: {},
     client,
@@ -62,7 +66,14 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     disconnect() {
       client.disconnect();
-      set({ status: "disconnected", workspace: null, activePageId: null, token: "" });
+      set({ status: "disconnected", workspace: null, activeProfileId: null, activePageId: null, token: "" });
+    },
+
+    switchProfile(profileId) {
+      const { workspace } = get();
+      const profile = workspace?.profiles.find((p) => p.id === profileId);
+      if (!profile) return;
+      set({ activeProfileId: profileId, activePageId: profile.defaultPageId });
     },
 
     pressButton(buttonId, pageId, profileId) {
